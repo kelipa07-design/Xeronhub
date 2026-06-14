@@ -1,1 +1,1187 @@
+-- ╔══════════════════════════════════════════════════════════╗
+-- ║   Target ESP GUI  |  Glintwein Style  |  LocalScript    ║
+-- ║   Crosshair + Target ESP: V1 / V2 / Atom / Crystal      ║
+-- ╚══════════════════════════════════════════════════════════╝
 
+local Players          = game:GetService("Players")
+local TweenService     = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
+local Lighting         = game:GetService("Lighting")
+local RunService       = game:GetService("RunService")
+
+local player = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
+
+local gui = Instance.new("ScreenGui")
+gui.Name           = "TargetESPGui"
+gui.ResetOnSpawn   = false
+gui.DisplayOrder   = 999
+gui.IgnoreGuiInset = true
+gui.Parent         = player:WaitForChild("PlayerGui")
+
+-- ── ЦВЕТА ────────────────────────────────────────────────
+local C = {
+    BG_MAIN    = Color3.fromHex("#0f1016"),
+    BG_SIDEBAR = Color3.fromHex("#0c0d12"),
+    BG_MODULES = Color3.fromHex("#111219"),
+    BG_DETAILS = Color3.fromHex("#0b0c11"),
+    BG_ROW     = Color3.fromHex("#161822"),
+    BG_ROW_SEL = Color3.fromHex("#1a0f15"),
+    ACCENT1    = Color3.fromHex("#ff6f8e"),
+    ACCENT2    = Color3.fromHex("#57d6c4"),
+    TEXT       = Color3.fromHex("#f3f4f8"),
+    MUTED      = Color3.fromHex("#a5a8b4"),
+    SOFT       = Color3.fromHex("#686d7a"),
+    LINE       = Color3.fromHex("#ffffff"),
+}
+
+-- ── HELPER ───────────────────────────────────────────────
+local function tween(obj, props, t, style, dir)
+    style = style or Enum.EasingStyle.Quint
+    dir   = dir   or Enum.EasingDirection.Out
+    TweenService:Create(obj, TweenInfo.new(t or 0.25, style, dir), props):Play()
+end
+
+local function gradColor(t)
+    return Color3.new(
+        C.ACCENT1.R + (C.ACCENT2.R - C.ACCENT1.R) * t,
+        C.ACCENT1.G + (C.ACCENT2.G - C.ACCENT1.G) * t,
+        C.ACCENT1.B + (C.ACCENT2.B - C.ACCENT1.B) * t
+    )
+end
+
+-- ── BLUR ─────────────────────────────────────────────────
+local blur = Instance.new("BlurEffect")
+blur.Size   = 0
+blur.Parent = Lighting
+
+-- ── SHADOW ───────────────────────────────────────────────
+local shadow = Instance.new("ImageLabel", gui)
+shadow.Size                   = UDim2.new(0, 660, 0, 420)
+shadow.Position               = UDim2.new(0.5, -330, 0.5, -210)
+shadow.BackgroundTransparency = 1
+shadow.Image                  = "rbxassetid://6015897843"
+shadow.ImageColor3            = Color3.fromHex("#ff6f8e")
+shadow.ImageTransparency      = 0.6
+shadow.ScaleType              = Enum.ScaleType.Slice
+shadow.SliceCenter            = Rect.new(49, 49, 450, 450)
+shadow.ZIndex                 = 1
+shadow.Visible                = false
+
+-- ── РАЗМЕРЫ ОКНА ─────────────────────────────────────────
+local MENU_W = 620
+local MENU_H = 380
+local SIDE_W = 100
+local MOD_W  = 200
+local DET_W  = MENU_W - SIDE_W - MOD_W
+local TOP_H  = 46
+local ROW_H  = 36
+local RADIUS = 18
+local PAD    = 8
+
+-- ── MAIN WINDOW ──────────────────────────────────────────
+local main = Instance.new("Frame", gui)
+main.Name                   = "Main"
+main.Size                   = UDim2.new(0, MENU_W, 0, MENU_H)
+main.Position               = UDim2.new(0.5, -MENU_W/2, 0.5, -MENU_H/2)
+main.BackgroundColor3       = C.BG_MAIN
+main.BackgroundTransparency = 0.03
+main.BorderSizePixel        = 0
+main.ClipsDescendants       = true
+main.Visible                = false
+main.ZIndex                 = 2
+Instance.new("UICorner", main).CornerRadius = UDim.new(0, RADIUS)
+
+local mainStroke = Instance.new("UIStroke", main)
+mainStroke.Color        = Color3.fromHex("#ffffff")
+mainStroke.Thickness    = 1
+mainStroke.Transparency = 0.85
+
+-- ── SIDEBAR ──────────────────────────────────────────────
+local sidebar = Instance.new("Frame", main)
+sidebar.Size                   = UDim2.new(0, SIDE_W, 1, 0)
+sidebar.BackgroundColor3       = C.BG_SIDEBAR
+sidebar.BackgroundTransparency = 0.1
+sidebar.BorderSizePixel        = 0
+sidebar.ZIndex                 = 3
+
+Instance.new("Frame", sidebar).Size                   = UDim2.new(0, 1, 1, 0)
+local sideDiv = sidebar:FindFirstChildOfClass("Frame")
+sideDiv.Position               = UDim2.new(1, -1, 0, 0)
+sideDiv.BackgroundColor3       = C.LINE
+sideDiv.BackgroundTransparency = 0.8
+sideDiv.BorderSizePixel        = 0
+sideDiv.ZIndex                 = 4
+
+local logoLabel = Instance.new("TextLabel", sidebar)
+logoLabel.Size                   = UDim2.new(1, -10, 0, 36)
+logoLabel.Position               = UDim2.new(0, 5, 0, 8)
+logoLabel.BackgroundTransparency = 1
+logoLabel.Text                   = "XERON"
+logoLabel.Font                   = Enum.Font.GothamBlack
+logoLabel.TextSize               = 14
+logoLabel.TextColor3             = C.ACCENT1
+logoLabel.TextXAlignment         = Enum.TextXAlignment.Center
+logoLabel.ZIndex                 = 4
+
+local logoDiv = Instance.new("Frame", sidebar)
+logoDiv.Size                   = UDim2.new(0.7, 0, 0, 1)
+logoDiv.Position               = UDim2.new(0.15, 0, 0, 48)
+logoDiv.BackgroundColor3       = C.LINE
+logoDiv.BackgroundTransparency = 0.75
+logoDiv.BorderSizePixel        = 0
+logoDiv.ZIndex                 = 4
+
+-- ── КАТЕГОРИИ ────────────────────────────────────────────
+local categories = {"Visual"}
+local catIcons   = {"👁"}
+local catBtns    = {}
+
+local catContainer = Instance.new("Frame", sidebar)
+catContainer.Size                   = UDim2.new(1, 0, 1, -56)
+catContainer.Position               = UDim2.new(0, 0, 0, 56)
+catContainer.BackgroundTransparency = 1
+catContainer.ZIndex                 = 4
+
+local catLayout = Instance.new("UIListLayout", catContainer)
+catLayout.Padding             = UDim.new(0, 2)
+catLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+catLayout.VerticalAlignment   = Enum.VerticalAlignment.Top
+catLayout.FillDirection       = Enum.FillDirection.Vertical
+
+-- ── МОДУЛИ ───────────────────────────────────────────────
+local modules = {
+    Visual = {"Crosshair", "Target ESP"},
+}
+
+local moduleEnabled  = {}
+local selectedModule = nil
+
+-- ── MOD PANEL ────────────────────────────────────────────
+local modPanel = Instance.new("Frame", main)
+modPanel.Name                   = "ModPanel"
+modPanel.Size                   = UDim2.new(0, MOD_W, 1, 0)
+modPanel.Position               = UDim2.new(0, SIDE_W, 0, 0)
+modPanel.BackgroundColor3       = C.BG_MODULES
+modPanel.BackgroundTransparency = 0.4
+modPanel.BorderSizePixel        = 0
+modPanel.ZIndex                 = 3
+modPanel.ClipsDescendants       = true
+
+local modDiv = Instance.new("Frame", modPanel)
+modDiv.Size                   = UDim2.new(0, 1, 1, 0)
+modDiv.Position               = UDim2.new(1, -1, 0, 0)
+modDiv.BackgroundColor3       = C.LINE
+modDiv.BackgroundTransparency = 0.8
+modDiv.BorderSizePixel        = 0
+modDiv.ZIndex                 = 4
+
+local modTopbar = Instance.new("Frame", modPanel)
+modTopbar.Size                   = UDim2.new(1, 0, 0, TOP_H)
+modTopbar.BackgroundTransparency = 1
+modTopbar.BorderSizePixel        = 0
+modTopbar.ZIndex                 = 5
+
+local modCatLabel = Instance.new("TextLabel", modTopbar)
+modCatLabel.Size                   = UDim2.new(1, -16, 1, 0)
+modCatLabel.Position               = UDim2.new(0, 12, 0, 0)
+modCatLabel.BackgroundTransparency = 1
+modCatLabel.Text                   = "Visual"
+modCatLabel.Font                   = Enum.Font.GothamBlack
+modCatLabel.TextSize               = 14
+modCatLabel.TextColor3             = C.ACCENT1
+modCatLabel.TextXAlignment         = Enum.TextXAlignment.Left
+modCatLabel.ZIndex                 = 6
+
+local modTopDiv = Instance.new("Frame", modPanel)
+modTopDiv.Size                   = UDim2.new(1, 0, 0, 1)
+modTopDiv.Position               = UDim2.new(0, 0, 0, TOP_H)
+modTopDiv.BackgroundColor3       = C.LINE
+modTopDiv.BackgroundTransparency = 0.8
+modTopDiv.BorderSizePixel        = 0
+modTopDiv.ZIndex                 = 5
+
+local modScroll = Instance.new("ScrollingFrame", modPanel)
+modScroll.Size                   = UDim2.new(1, 0, 1, -TOP_H - 1)
+modScroll.Position               = UDim2.new(0, 0, 0, TOP_H + 1)
+modScroll.BackgroundTransparency = 1
+modScroll.ScrollBarThickness     = 2
+modScroll.ScrollBarImageColor3   = C.ACCENT1
+modScroll.CanvasSize             = UDim2.new(0, 0, 0, 0)
+modScroll.AutomaticCanvasSize    = Enum.AutomaticSize.Y
+modScroll.BorderSizePixel        = 0
+modScroll.ZIndex                 = 5
+
+local modLayout = Instance.new("UIListLayout", modScroll)
+modLayout.Padding           = UDim.new(0, 2)
+modLayout.VerticalAlignment = Enum.VerticalAlignment.Top
+
+local modulePad = Instance.new("UIPadding", modScroll)
+modulePad.PaddingLeft   = UDim.new(0, PAD)
+modulePad.PaddingRight  = UDim.new(0, PAD)
+modulePad.PaddingTop    = UDim.new(0, PAD)
+modulePad.PaddingBottom = UDim.new(0, PAD)
+
+local modBtns = {}
+
+-- ── DET PANEL ────────────────────────────────────────────
+local detPanel = Instance.new("Frame", main)
+detPanel.Name                   = "DetPanel"
+detPanel.Size                   = UDim2.new(0, DET_W, 1, 0)
+detPanel.Position               = UDim2.new(0, SIDE_W + MOD_W, 0, 0)
+detPanel.BackgroundColor3       = C.BG_DETAILS
+detPanel.BackgroundTransparency = 0.4
+detPanel.BorderSizePixel        = 0
+detPanel.ZIndex                 = 3
+detPanel.ClipsDescendants       = true
+
+local detTopDiv = Instance.new("Frame", detPanel)
+detTopDiv.Size                   = UDim2.new(1, 0, 0, 1)
+detTopDiv.Position               = UDim2.new(0, 0, 0, TOP_H)
+detTopDiv.BackgroundColor3       = C.LINE
+detTopDiv.BackgroundTransparency = 0.8
+detTopDiv.BorderSizePixel        = 0
+detTopDiv.ZIndex                 = 4
+
+local detTitle = Instance.new("TextLabel", detPanel)
+detTitle.Size                   = UDim2.new(1, -16, 0, TOP_H)
+detTitle.Position               = UDim2.new(0, 12, 0, 0)
+detTitle.BackgroundTransparency = 1
+detTitle.Text                   = "Select module"
+detTitle.Font                   = Enum.Font.GothamBold
+detTitle.TextSize               = 15
+detTitle.TextColor3             = C.TEXT
+detTitle.TextXAlignment         = Enum.TextXAlignment.Left
+detTitle.ZIndex                 = 4
+
+local detContent = Instance.new("Frame", detPanel)
+detContent.Size                   = UDim2.new(1, 0, 1, -TOP_H - 1)
+detContent.Position               = UDim2.new(0, 0, 0, TOP_H + 1)
+detContent.BackgroundTransparency = 1
+detContent.ZIndex                 = 4
+detContent.ClipsDescendants       = true
+
+local detDesc = Instance.new("TextLabel", detContent)
+detDesc.Size                   = UDim2.new(1, -24, 0, 40)
+detDesc.Position               = UDim2.new(0, 12, 0, 8)
+detDesc.BackgroundTransparency = 1
+detDesc.Text                   = "Выбери модуль для настройки"
+detDesc.Font                   = Enum.Font.Gotham
+detDesc.TextSize               = 12
+detDesc.TextColor3             = C.SOFT
+detDesc.TextXAlignment         = Enum.TextXAlignment.Left
+detDesc.TextWrapped            = true
+detDesc.ZIndex                 = 5
+
+-- Toggle кнопка
+local toggleBtn = Instance.new("TextButton", detContent)
+toggleBtn.Size             = UDim2.new(1, -24, 0, 32)
+toggleBtn.Position         = UDim2.new(0, 12, 0, 54)
+toggleBtn.BackgroundColor3 = C.BG_ROW
+toggleBtn.Text             = "  ENABLE"
+toggleBtn.Font             = Enum.Font.GothamBold
+toggleBtn.TextSize         = 13
+toggleBtn.TextColor3       = C.SOFT
+toggleBtn.AutoButtonColor  = false
+toggleBtn.ZIndex           = 5
+Instance.new("UICorner", toggleBtn).CornerRadius = UDim.new(0, 8)
+
+local toggleStroke = Instance.new("UIStroke", toggleBtn)
+toggleStroke.Color        = C.LINE
+toggleStroke.Thickness    = 1
+toggleStroke.Transparency = 0.8
+
+-- ── ESP РЕЖИМ (4 кнопки: V1 / V2 / Atom / Crystal) ───────
+local espModeLabel = Instance.new("TextLabel", detContent)
+espModeLabel.Size                   = UDim2.new(1, -24, 0, 18)
+espModeLabel.Position               = UDim2.new(0, 12, 0, 96)
+espModeLabel.BackgroundTransparency = 1
+espModeLabel.Text                   = "Режим ESP:"
+espModeLabel.Font                   = Enum.Font.GothamSemibold
+espModeLabel.TextSize               = 11
+espModeLabel.TextColor3             = C.MUTED
+espModeLabel.TextXAlignment         = Enum.TextXAlignment.Left
+espModeLabel.ZIndex                 = 5
+espModeLabel.Visible                = false
+
+local espModeBtnsFrame = Instance.new("Frame", detContent)
+espModeBtnsFrame.Size                   = UDim2.new(1, -24, 0, 30)
+espModeBtnsFrame.Position               = UDim2.new(0, 12, 0, 116)
+espModeBtnsFrame.BackgroundTransparency = 1
+espModeBtnsFrame.ZIndex                 = 5
+espModeBtnsFrame.Visible                = false
+
+local espModeLayout = Instance.new("UIListLayout", espModeBtnsFrame)
+espModeLayout.FillDirection       = Enum.FillDirection.Horizontal
+espModeLayout.Padding             = UDim.new(0, 4)
+espModeLayout.VerticalAlignment   = Enum.VerticalAlignment.Center
+espModeLayout.HorizontalAlignment = Enum.HorizontalAlignment.Left
+
+local ESP_MODES = {"V1", "V2", "Atom", "Crystal"}
+local espModeBtns = {}
+
+for _, mname in ipairs(ESP_MODES) do
+    local b = Instance.new("TextButton", espModeBtnsFrame)
+    b.Size             = UDim2.new(0, 52, 1, 0)
+    b.BackgroundColor3 = Color3.fromHex("#0c0d12")
+    b.Text             = mname
+    b.Font             = Enum.Font.GothamBold
+    b.TextSize         = 11
+    b.TextColor3       = C.SOFT
+    b.AutoButtonColor  = false
+    b.BorderSizePixel  = 0
+    b.ZIndex           = 6
+    Instance.new("UICorner", b).CornerRadius = UDim.new(0, 6)
+    espModeBtns[mname] = b
+end
+
+-- ── НАСТРОЙКИ ESP ────────────────────────────────────────
+local Settings = {
+    -- V1
+    V1_RINGS     = 3,
+    V1_TRAIL     = 35,
+    V1_SPEED     = 4,
+    V1_RADIUS    = 55,
+    V1_BASE_SIZE = 6,
+    -- V2
+    V2_CUBE_SIZE  = 0.12,
+    V2_CUBE_COUNT = 20,
+    V2_ROT_SPEED  = 4.0,
+    V2_ORBIT_SPEED= 1.0,
+    -- Atom
+    ATOM_RADIUS   = 1.0,
+    ATOM_SPEED    = 1.0,
+    ATOM_RINGS    = 3,
+    ATOM_SEGMENTS = 48,
+    -- Crystal
+    CRYSTAL_SIZE  = 0.8,
+    CRYSTAL_COUNT = 20,
+    CRYSTAL_SPEED = 3.2,
+    -- Общее
+    DOT_THRESH    = 0.96,
+    ESP_MODE      = "V1",
+}
+
+-- Конфиги слайдеров по режиму
+local SLIDER_CFGS = {
+    V1 = {
+        { label="Радиус",   key="V1_RADIUS",    min=20,   max=120, step=5,   default=55  },
+        { label="Размер",   key="V1_BASE_SIZE", min=2,    max=16,  step=1,   default=6   },
+        { label="Скорость", key="V1_SPEED",     min=1,    max=10,  step=0.5, default=4   },
+        { label="Хвост",    key="V1_TRAIL",     min=10,   max=60,  step=5,   default=35  },
+    },
+    V2 = {
+        { label="Размер куба",  key="V2_CUBE_SIZE",   min=0.05,max=0.5, step=0.01,default=0.12 },
+        { label="Кол-во кубов",key="V2_CUBE_COUNT",  min=5,   max=30,  step=1,   default=20   },
+        { label="Скор. оси",   key="V2_ROT_SPEED",   min=0.5, max=15,  step=0.5, default=4.0  },
+        { label="Скор. орбиты",key="V2_ORBIT_SPEED", min=0.2, max=3,   step=0.1, default=1.0  },
+    },
+    Atom = {
+        { label="Радиус колец",  key="ATOM_RADIUS",   min=0.3, max=3.0, step=0.1, default=1.0 },
+        { label="Скорость",      key="ATOM_SPEED",    min=0.2, max=5.0, step=0.1, default=1.0 },
+        { label="Кол-во колец",  key="ATOM_RINGS",    min=1,   max=6,   step=1,   default=3   },
+        { label="Сегменты",      key="ATOM_SEGMENTS", min=16,  max=64,  step=8,   default=48  },
+    },
+    Crystal = {
+        { label="Размер",    key="CRYSTAL_SIZE",  min=0.1, max=2.0, step=0.1, default=0.8 },
+        { label="Кол-во",    key="CRYSTAL_COUNT", min=5,   max=30,  step=1,   default=20  },
+        { label="Скорость",  key="CRYSTAL_SPEED", min=0.5, max=8.0, step=0.1, default=3.2 },
+    },
+}
+
+-- Фрейм для слайдеров
+local espSettingsFrame = Instance.new("ScrollingFrame", detContent)
+espSettingsFrame.Size                   = UDim2.new(1, -24, 1, -158)
+espSettingsFrame.Position               = UDim2.new(0, 12, 0, 154)
+espSettingsFrame.BackgroundTransparency = 1
+espSettingsFrame.ScrollBarThickness     = 2
+espSettingsFrame.ScrollBarImageColor3   = C.ACCENT1
+espSettingsFrame.CanvasSize             = UDim2.new(0,0,0,0)
+espSettingsFrame.AutomaticCanvasSize    = Enum.AutomaticSize.Y
+espSettingsFrame.BorderSizePixel        = 0
+espSettingsFrame.ZIndex                 = 5
+espSettingsFrame.Visible                = false
+
+local espSettingsLayout = Instance.new("UIListLayout", espSettingsFrame)
+espSettingsLayout.Padding = UDim.new(0, 6)
+
+-- Создание слайдера
+local allSliderRows = {}  -- { mode, row }
+
+local function makeSlider(parent, cfg, mode)
+    local row = Instance.new("Frame", parent)
+    row.Size                   = UDim2.new(1, -4, 0, 26)
+    row.BackgroundTransparency = 1
+    row.ZIndex                 = 6
+    row.Visible                = false
+
+    local lbl = Instance.new("TextLabel", row)
+    lbl.Size                   = UDim2.new(0.5, 0, 1, 0)
+    lbl.BackgroundTransparency = 1
+    lbl.Text                   = cfg.label
+    lbl.Font                   = Enum.Font.Gotham
+    lbl.TextSize               = 11
+    lbl.TextColor3             = C.MUTED
+    lbl.TextXAlignment         = Enum.TextXAlignment.Left
+    lbl.ZIndex                 = 7
+
+    local valLbl = Instance.new("TextLabel", row)
+    valLbl.Size                   = UDim2.new(0.22, 0, 1, 0)
+    valLbl.Position               = UDim2.new(0.5, 0, 0, 0)
+    valLbl.BackgroundTransparency = 1
+    valLbl.Text                   = tostring(cfg.default)
+    valLbl.Font                   = Enum.Font.GothamBold
+    valLbl.TextSize               = 11
+    valLbl.TextColor3             = C.ACCENT1
+    valLbl.TextXAlignment         = Enum.TextXAlignment.Center
+    valLbl.ZIndex                 = 7
+
+    local btnMinus = Instance.new("TextButton", row)
+    btnMinus.Size             = UDim2.new(0, 18, 0, 18)
+    btnMinus.Position         = UDim2.new(0.73, 0, 0.5, -9)
+    btnMinus.BackgroundColor3 = C.BG_ROW
+    btnMinus.Text             = "-"
+    btnMinus.Font             = Enum.Font.GothamBold
+    btnMinus.TextSize         = 13
+    btnMinus.TextColor3       = C.MUTED
+    btnMinus.AutoButtonColor  = false
+    btnMinus.ZIndex           = 8
+    Instance.new("UICorner", btnMinus).CornerRadius = UDim.new(1, 0)
+
+    local btnPlus = Instance.new("TextButton", row)
+    btnPlus.Size             = UDim2.new(0, 18, 0, 18)
+    btnPlus.Position         = UDim2.new(1, -18, 0.5, -9)
+    btnPlus.BackgroundColor3 = C.BG_ROW
+    btnPlus.Text             = "+"
+    btnPlus.Font             = Enum.Font.GothamBold
+    btnPlus.TextSize         = 13
+    btnPlus.TextColor3       = C.MUTED
+    btnPlus.AutoButtonColor  = false
+    btnPlus.ZIndex           = 8
+    Instance.new("UICorner", btnPlus).CornerRadius = UDim.new(1, 0)
+
+    local track = Instance.new("Frame", row)
+    track.Size             = UDim2.new(0, 0, 0, 3)
+    track.Visible          = false  -- скрыт, просто +/- кнопки
+
+    local function updateVal(delta)
+        local cur = Settings[cfg.key]
+        local new = math.clamp(
+            math.floor((cur + delta) / cfg.step + 0.5) * cfg.step,
+            cfg.min, cfg.max
+        )
+        new = math.floor(new * 1000 + 0.5) / 1000
+        Settings[cfg.key] = new
+        valLbl.Text = tostring(new)
+    end
+
+    btnMinus.MouseButton1Click:Connect(function() updateVal(-cfg.step) end)
+    btnPlus.MouseButton1Click:Connect(function() updateVal(cfg.step) end)
+
+    table.insert(allSliderRows, { mode = mode, row = row })
+    return row
+end
+
+for mode, cfgs in pairs(SLIDER_CFGS) do
+    for _, cfg in ipairs(cfgs) do
+        makeSlider(espSettingsFrame, cfg, mode)
+    end
+end
+
+local function refreshESPSliders()
+    for _, entry in ipairs(allSliderRows) do
+        entry.row.Visible = (entry.mode == Settings.ESP_MODE)
+    end
+end
+
+local function refreshESPModeButtons()
+    for mname, btn in pairs(espModeBtns) do
+        local active = (mname == Settings.ESP_MODE)
+        tween(btn, {
+            BackgroundColor3 = active and Color3.fromHex("#1a0f15") or Color3.fromHex("#0c0d12"),
+            TextColor3       = active and C.ACCENT1 or C.SOFT,
+        }, 0.15)
+    end
+    refreshESPSliders()
+end
+
+for mname, btn in pairs(espModeBtns) do
+    btn.MouseButton1Click:Connect(function()
+        Settings.ESP_MODE = mname
+        -- Убрать текущий ESP
+        for p in pairs(v1Billboards or {}) do end  -- будет инициализировано ниже
+        refreshESPModeButtons()
+    end)
+end
+
+-- ══════════════════════════════════════════════════════════
+-- CROSSHAIR
+-- ══════════════════════════════════════════════════════════
+local crosshairFrame = Instance.new("Frame", gui)
+crosshairFrame.Size                   = UDim2.new(0, 16, 0, 16)
+crosshairFrame.Position               = UDim2.new(0.5, -8, 0.5, -8)
+crosshairFrame.BackgroundTransparency = 1
+crosshairFrame.ZIndex                 = 100
+crosshairFrame.Visible                = false
+
+local hLine = Instance.new("Frame", crosshairFrame)
+hLine.Size             = UDim2.new(0, 16, 0, 2)
+hLine.Position         = UDim2.new(0, 0, 0.5, -1)
+hLine.BackgroundColor3 = Color3.new(1, 1, 1)
+hLine.BorderSizePixel  = 0
+hLine.ZIndex           = 101
+
+local vLine = Instance.new("Frame", crosshairFrame)
+vLine.Size             = UDim2.new(0, 2, 0, 16)
+vLine.Position         = UDim2.new(0.5, -1, 0, 0)
+vLine.BackgroundColor3 = Color3.new(1, 1, 1)
+vLine.BorderSizePixel  = 0
+vLine.ZIndex           = 101
+
+-- ══════════════════════════════════════════════════════════
+-- ПОИСК ЦЕЛИ (по любой части тела)
+-- ══════════════════════════════════════════════════════════
+local function getAimedTarget()
+    local vpSize  = Camera.ViewportSize
+    local unitRay = Camera:ScreenPointToRay(vpSize.X / 2, vpSize.Y / 2)
+    local best, bestDot = nil, Settings.DOT_THRESH
+
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p ~= player and p.Character then
+            for _, part in ipairs(p.Character:GetChildren()) do
+                if part:IsA("BasePart") then
+                    local dir = (part.Position - Camera.CFrame.Position).Unit
+                    local dot = unitRay.Direction:Dot(dir)
+                    if dot > bestDot then
+                        bestDot = dot
+                        best    = p
+                    end
+                end
+            end
+        end
+    end
+    return best
+end
+
+-- ══════════════════════════════════════════════════════════
+-- V1 — ЧАСТИЦЫ
+-- ══════════════════════════════════════════════════════════
+local v1Billboards = {}
+
+local function removeV1(p)
+    local d = v1Billboards[p]
+    if d then
+        if d.conn then d.conn:Disconnect() end
+        if d.bb and d.bb.Parent then d.bb:Destroy() end
+        v1Billboards[p] = nil
+    end
+end
+
+local function createV1(p)
+    if v1Billboards[p] then return end
+    local char = p.Character
+    if not char then return end
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    if not hrp then return end
+
+    local bb = Instance.new("BillboardGui")
+    bb.Name = "TESP_V1"; bb.Size = UDim2.new(0,140,0,200)
+    bb.AlwaysOnTop = true; bb.Adornee = hrp; bb.Parent = gui
+
+    local rings = {}
+    local yOffsets = {-55, 0, 55}
+    for k = 1, Settings.V1_RINGS do
+        local dots = {}
+        for j = 1, Settings.V1_TRAIL do
+            local dot = Instance.new("Frame", bb)
+            dot.Size = UDim2.new(0, Settings.V1_BASE_SIZE, 0, Settings.V1_BASE_SIZE)
+            dot.BackgroundColor3 = gradColor((k-1)/Settings.V1_RINGS)
+            dot.BackgroundTransparency = 0.3
+            dot.BorderSizePixel = 0; dot.ZIndex = 50
+            Instance.new("UICorner", dot).CornerRadius = UDim.new(1,0)
+            table.insert(dots, dot)
+        end
+        rings[k] = { dots=dots, yOff=yOffsets[k] }
+    end
+
+    local conn
+    conn = RunService.RenderStepped:Connect(function()
+        if not p.Character or not p.Character:FindFirstChild("HumanoidRootPart") then removeV1(p); return end
+        local t = tick() * Settings.V1_SPEED
+        local cx = bb.AbsoluteSize.X/2; local cy = bb.AbsoluteSize.Y/2
+        for k, rd in ipairs(rings) do
+            for j = 1, Settings.V1_TRAIL do
+                local kf = j/Settings.V1_TRAIL
+                local angle = math.rad(k*120 + (t*50 - j*10) % 360)
+                local r = Settings.V1_RADIUS*(1-kf*0.3)
+                local ox = math.cos(angle)*r; local oy = math.sin(angle)*r*0.4
+                local sz = math.max(2, Settings.V1_BASE_SIZE*(1-kf*0.7))
+                local dot = rd.dots[j]
+                dot.Size = UDim2.new(0,sz,0,sz)
+                dot.Position = UDim2.new(0, cx+ox-sz/2, 0, cy+rd.yOff+oy-sz/2)
+                dot.BackgroundTransparency = 0.1 + kf*0.75
+                dot.BackgroundColor3 = gradColor(((k-1)/Settings.V1_RINGS + kf*0.4)%1)
+            end
+        end
+    end)
+    v1Billboards[p] = { bb=bb, conn=conn }
+end
+
+-- ══════════════════════════════════════════════════════════
+-- V2 — КУБЫ
+-- ══════════════════════════════════════════════════════════
+local v2Data = {}
+
+local function removeV2(p)
+    local d = v2Data[p]
+    if d then
+        if d.conn then d.conn:Disconnect() end
+        for _, bb in ipairs(d.bbs or {}) do if bb and bb.Parent then bb:Destroy() end end
+        v2Data[p] = nil
+    end
+end
+
+local function createV2(p)
+    if v2Data[p] then return end
+    local char = p.Character
+    if not char then return end
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    if not hrp then return end
+
+    local count = Settings.V2_CUBE_COUNT
+    local bbList = {}
+    for i = 1, count do
+        local bb = Instance.new("BillboardGui")
+        bb.Name = "TESP_V2_"..i
+        bb.Size = UDim2.new(0, Settings.V2_CUBE_SIZE*60, 0, Settings.V2_CUBE_SIZE*60)
+        bb.AlwaysOnTop = true; bb.Adornee = hrp; bb.Parent = gui
+        local face = Instance.new("Frame", bb)
+        face.Size = UDim2.new(1,0,1,0)
+        face.BackgroundColor3 = gradColor((i-1)/count)
+        face.BackgroundTransparency = 0.45
+        face.BorderSizePixel = 0; face.ZIndex = 50
+        Instance.new("UICorner", face).CornerRadius = UDim.new(0,3)
+        table.insert(bbList, bb)
+    end
+
+    local conn
+    conn = RunService.RenderStepped:Connect(function()
+        if not p.Character or not p.Character:FindFirstChild("HumanoidRootPart") then removeV2(p); return end
+        local t = tick()*0.15
+        local eH = 5; local eW = 2; local hW = eW*0.5
+        for i, bb in ipairs(bbList) do
+            local s1 = math.sin(i*1.7+0.3)*0.5+0.5
+            local s2 = math.cos(i*2.3+0.7)*0.5+0.5
+            local s3 = math.sin(i*3.1+1.1)*0.5+0.5
+            local cnt = Settings.V2_CUBE_COUNT
+            local aOff = i*(360/cnt)+s1*12
+            local ang = math.rad(t*60*Settings.V2_ORBIT_SPEED+aOff)
+            local or_ = hW+0.25+s3*0.15
+            local ox = or_*math.cos(ang); local oz = or_*math.sin(ang)
+            local bob = math.sin(t*0.05+i*0.3)*0.1
+            local oy = s2*eH*1.05+bob
+            bb.Size = UDim2.new(0,Settings.V2_CUBE_SIZE*60,0,Settings.V2_CUBE_SIZE*60)
+            bb.StudsOffset = Vector3.new(ox, oy-eH/2, oz)
+            local ct = ((i-1)/cnt + math.sin(t+i)*0.1)%1
+            bb:FindFirstChildOfClass("Frame").BackgroundColor3 = gradColor(ct)
+        end
+    end)
+    v2Data[p] = { bbs=bbList, conn=conn }
+end
+
+-- ══════════════════════════════════════════════════════════
+-- ATOM — три вращающихся кольца с точками
+-- ══════════════════════════════════════════════════════════
+local atomData = {}
+
+local function removeAtom(p)
+    local d = atomData[p]
+    if d then
+        if d.conn then d.conn:Disconnect() end
+        for _, bb in ipairs(d.bbs or {}) do if bb and bb.Parent then bb:Destroy() end end
+        atomData[p] = nil
+    end
+end
+
+local function createAtom(p)
+    if atomData[p] then return end
+    local char = p.Character
+    if not char then return end
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    if not hrp then return end
+
+    local rings    = Settings.ATOM_RINGS
+    local segments = Settings.ATOM_SEGMENTS
+    local bbList   = {}
+
+    -- Для каждого кольца создаём сегментные точки + 6 маленьких «электронов»
+    for ring = 1, rings do
+        -- сегменты кольца
+        for j = 1, segments do
+            local bb = Instance.new("BillboardGui")
+            bb.Name = "TESP_Atom_R"..ring.."S"..j
+            bb.Size = UDim2.new(0, 5, 0, 5)
+            bb.AlwaysOnTop = true; bb.Adornee = hrp; bb.Parent = gui
+            local dot = Instance.new("Frame", bb)
+            dot.Size = UDim2.new(1,0,1,0)
+            dot.BackgroundColor3 = gradColor((ring-1)/rings)
+            dot.BackgroundTransparency = 0.25
+            dot.BorderSizePixel = 0; dot.ZIndex = 50
+            Instance.new("UICorner", dot).CornerRadius = UDim.new(1,0)
+            table.insert(bbList, { bb=bb, ring=ring, seg=j, isElectron=false })
+        end
+        -- электроны (6 штук на кольцо)
+        for e = 1, 6 do
+            local bb = Instance.new("BillboardGui")
+            bb.Name = "TESP_Atom_R"..ring.."E"..e
+            bb.Size = UDim2.new(0, 10, 0, 10)
+            bb.AlwaysOnTop = true; bb.Adornee = hrp; bb.Parent = gui
+            local dot = Instance.new("Frame", bb)
+            dot.Size = UDim2.new(1,0,1,0)
+            dot.BackgroundColor3 = gradColor((ring-1)/rings + 0.15)
+            dot.BackgroundTransparency = 0.0
+            dot.BorderSizePixel = 0; dot.ZIndex = 51
+            Instance.new("UICorner", dot).CornerRadius = UDim.new(1,0)
+            table.insert(bbList, { bb=bb, ring=ring, seg=e, isElectron=true })
+        end
+    end
+
+    local conn
+    conn = RunService.RenderStepped:Connect(function()
+        if not p.Character or not p.Character:FindFirstChild("HumanoidRootPart") then removeAtom(p); return end
+        local t      = tick() * Settings.ATOM_SPEED
+        local radius = Settings.ATOM_RADIUS
+        local eH     = 3  -- вертикальный центр
+
+        for _, entry in ipairs(bbList) do
+            local ring = entry.ring
+            local ringOffsetDeg = (ring-1) * (180/rings)  -- наклон плоскости кольца
+            local cosTilt = math.cos(math.rad(ringOffsetDeg))
+            local sinTilt = math.sin(math.rad(ringOffsetDeg))
+
+            if entry.isElectron then
+                -- электрон движется по кольцу
+                local eAngle = math.rad(t * 60 * (ring*0.5+1) + entry.seg * (360/6))
+                local rx = math.cos(eAngle) * radius
+                local ry_flat = math.sin(eAngle) * radius
+                -- наклон кольца
+                local ry = ry_flat * cosTilt
+                local rz = ry_flat * sinTilt
+                entry.bb.StudsOffset = Vector3.new(rx, ry + eH, rz)
+                -- пульсация цвета
+                local ct = ((ring-1)/rings + math.abs(math.sin(t*2+entry.seg)))%1
+                entry.bb:FindFirstChildOfClass("Frame").BackgroundColor3 = gradColor(ct)
+            else
+                -- точка кольца (статично относительно угла, вращается)
+                local baseAngle = math.rad(t * 30 * ring + (entry.seg/segments)*360)
+                local rx = math.cos(baseAngle) * radius
+                local ry_flat = math.sin(baseAngle) * radius
+                local ry = ry_flat * cosTilt
+                local rz = ry_flat * sinTilt
+                entry.bb.StudsOffset = Vector3.new(rx, ry + eH, rz)
+                local ct = ((ring-1)/rings + entry.seg/segments*0.3)%1
+                local alp = 0.3 + math.abs(math.sin(baseAngle))*0.4
+                entry.bb:FindFirstChildOfClass("Frame").BackgroundTransparency = alp
+                entry.bb:FindFirstChildOfClass("Frame").BackgroundColor3 = gradColor(ct)
+            end
+        end
+    end)
+    atomData[p] = { bbs=bbList, conn=conn }
+end
+
+-- ══════════════════════════════════════════════════════════
+-- CRYSTAL — кристаллы летящие по орбите
+-- ══════════════════════════════════════════════════════════
+local crystalData = {}
+
+local function removeCrystal(p)
+    local d = crystalData[p]
+    if d then
+        if d.conn then d.conn:Disconnect() end
+        for _, bb in ipairs(d.bbs or {}) do if bb and bb.Parent then bb:Destroy() end end
+        crystalData[p] = nil
+    end
+end
+
+local function createCrystal(p)
+    if crystalData[p] then return end
+    local char = p.Character
+    if not char then return end
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    if not hrp then return end
+
+    local count = Settings.CRYSTAL_COUNT
+    local bbList = {}
+
+    for i = 1, count do
+        -- Каждый кристалл = 3 BillboardGui (верх / тело / низ) для имитации формы
+        local parts = {}
+        local sizes = { 6, 10, 6 }   -- верх, тело, низ
+        local yOffs = { 0.18, 0, -0.18 }
+
+        for k = 1, 3 do
+            local bb = Instance.new("BillboardGui")
+            bb.Name = "TESP_Crystal_"..i.."_"..k
+            local sz = sizes[k] * Settings.CRYSTAL_SIZE
+            bb.Size = UDim2.new(0, sz, 0, sz * (k==2 and 2.5 or 1))
+            bb.AlwaysOnTop = true; bb.Adornee = hrp; bb.Parent = gui
+
+            local face = Instance.new("Frame", bb)
+            face.Size = UDim2.new(1,0,1,0)
+            local brightness = (k==1) and 0.1 or (k==2) and 0.2 or 0.5
+            face.BackgroundTransparency = brightness
+            face.BorderSizePixel = 0; face.ZIndex = 50
+
+            -- Форма кристалла через UICorner
+            local corner = Instance.new("UICorner", face)
+            corner.CornerRadius = (k==2) and UDim.new(0,2) or UDim.new(0,6)
+
+            face.BackgroundColor3 = gradColor((i-1)/count + (k-1)*0.1)
+            table.insert(parts, { bb=bb, yOff=yOffs[k] })
+        end
+
+        -- Свечение (большой полупрозрачный круг)
+        local glowBB = Instance.new("BillboardGui")
+        glowBB.Name = "TESP_Crystal_"..i.."_glow"
+        glowBB.Size = UDim2.new(0, 22*Settings.CRYSTAL_SIZE, 0, 22*Settings.CRYSTAL_SIZE)
+        glowBB.AlwaysOnTop = true; glowBB.Adornee = hrp; glowBB.Parent = gui
+        local gf = Instance.new("Frame", glowBB)
+        gf.Size = UDim2.new(1,0,1,0)
+        gf.BackgroundColor3 = gradColor((i-1)/count)
+        gf.BackgroundTransparency = 0.75
+        gf.BorderSizePixel = 0; gf.ZIndex = 49
+        Instance.new("UICorner", gf).CornerRadius = UDim.new(1,0)
+        table.insert(parts, { bb=glowBB, yOff=0 })
+
+        table.insert(bbList, { parts=parts, idx=i })
+    end
+
+    local conn
+    conn = RunService.RenderStepped:Connect(function()
+        if not p.Character or not p.Character:FindFirstChild("HumanoidRootPart") then removeCrystal(p); return end
+
+        local t = tick() * (Settings.CRYSTAL_SPEED * 0.05)
+        local cnt = Settings.CRYSTAL_COUNT
+        local eH = 5; local eW = 2; local hW = eW*0.5
+
+        for _, cdata in ipairs(bbList) do
+            local i = cdata.idx
+            local s1 = math.sin(i*1.7+0.3)*0.5+0.5
+            local s2 = math.cos(i*2.3+0.7)*0.5+0.5
+            local s3 = math.sin(i*3.1+1.1)*0.5+0.5
+
+            local aOff = math.rad(i*(360/cnt) + s1*12)
+            local angle = t * Settings.CRYSTAL_SPEED + aOff
+            local radius = hW + 0.25 + s3*0.15
+
+            local ox = radius * math.cos(angle)
+            local oz = radius * math.sin(angle)
+            local oy = s2 * eH * 1.05
+
+            -- Вращение самого кристалла
+            local crystalRot = t * 3 + i * 0.5
+
+            for _, part in ipairs(cdata.parts) do
+                local poy = oy + part.yOff * Settings.CRYSTAL_SIZE * 2
+                part.bb.StudsOffset = Vector3.new(ox, poy - eH/2, oz)
+                -- Пульсация прозрачности свечения
+                if part.bb.Name:find("glow") then
+                    part.bb:FindFirstChildOfClass("Frame").BackgroundTransparency =
+                        0.65 + math.sin(t*4 + i)*0.1
+                end
+                -- Пульсация цвета
+                local ct = ((i-1)/cnt + math.sin(t*2+i)*0.15)%1
+                part.bb:FindFirstChildOfClass("Frame").BackgroundColor3 = gradColor(ct)
+            end
+        end
+    end)
+
+    crystalData[p] = { bbs=bbList, conn=conn }
+end
+
+-- ══════════════════════════════════════════════════════════
+-- УБРАТЬ ВСЕ ESP С ИГРОКА
+-- ══════════════════════════════════════════════════════════
+local function removeAllESP(p)
+    removeV1(p); removeV2(p); removeAtom(p); removeCrystal(p)
+end
+
+-- ══════════════════════════════════════════════════════════
+-- ГЛАВНЫЙ ЦИКЛ ESP
+-- ══════════════════════════════════════════════════════════
+local lastAimed = nil
+
+RunService.Heartbeat:Connect(function()
+    if not moduleEnabled["Target ESP"] then
+        for p in pairs(v1Billboards) do removeV1(p) end
+        for p in pairs(v2Data)        do removeV2(p) end
+        for p in pairs(atomData)      do removeAtom(p) end
+        for p in pairs(crystalData)   do removeCrystal(p) end
+        lastAimed = nil
+        return
+    end
+
+    local aimed = getAimedTarget()
+
+    if lastAimed and lastAimed ~= aimed then
+        removeAllESP(lastAimed)
+    end
+
+    if aimed then
+        local mode = Settings.ESP_MODE
+        if mode == "V1" then
+            removeV2(aimed); removeAtom(aimed); removeCrystal(aimed); createV1(aimed)
+        elseif mode == "V2" then
+            removeV1(aimed); removeAtom(aimed); removeCrystal(aimed); createV2(aimed)
+        elseif mode == "Atom" then
+            removeV1(aimed); removeV2(aimed); removeCrystal(aimed); createAtom(aimed)
+        elseif mode == "Crystal" then
+            removeV1(aimed); removeV2(aimed); removeAtom(aimed); createCrystal(aimed)
+        end
+    end
+
+    lastAimed = aimed
+end)
+
+-- Теперь назначаем кнопки режима (переинициализируем с доступом к removeAll)
+for mname, btn in pairs(espModeBtns) do
+    btn.MouseButton1Click:Connect(function()
+        if lastAimed then removeAllESP(lastAimed) end
+        Settings.ESP_MODE = mname
+        refreshESPModeButtons()
+    end)
+end
+
+refreshESPModeButtons()
+
+-- ══════════════════════════════════════════════════════════
+-- GUI: КАТЕГОРИИ + МОДУЛИ
+-- ══════════════════════════════════════════════════════════
+local function updateDetPanel(name)
+    detTitle.Text = name
+    local en = moduleEnabled[name]
+
+    if name == "Target ESP" then
+        detDesc.Text = "Визуальный эффект вокруг игрока под прицелом. Режимы: V1 (частицы), V2 (кубы), Atom (кольца), Crystal (кристаллы)"
+        espModeLabel.Visible      = true
+        espModeBtnsFrame.Visible  = true
+        espSettingsFrame.Visible  = true
+        refreshESPSliders()
+    elseif name == "Crosshair" then
+        detDesc.Text = "Крест по центру экрана — показывает точный центр прицела"
+        espModeLabel.Visible      = false
+        espModeBtnsFrame.Visible  = false
+        espSettingsFrame.Visible  = false
+    else
+        espModeLabel.Visible      = false
+        espModeBtnsFrame.Visible  = false
+        espSettingsFrame.Visible  = false
+    end
+
+    if en then
+        tween(toggleBtn, { BackgroundColor3 = Color3.fromHex("#1a0f15"), TextColor3 = C.ACCENT1 }, 0.2)
+        tween(toggleStroke, { Color = C.ACCENT1, Transparency = 0.4 }, 0.2)
+        toggleBtn.Text = "✓  ENABLED"
+    else
+        tween(toggleBtn, { BackgroundColor3 = C.BG_ROW, TextColor3 = C.SOFT }, 0.2)
+        tween(toggleStroke, { Color = C.LINE, Transparency = 0.8 }, 0.2)
+        toggleBtn.Text = "  ENABLE"
+    end
+end
+
+local function applyModuleState(name)
+    if name == "Crosshair" then
+        crosshairFrame.Visible = moduleEnabled[name] or false
+    end
+end
+
+local function selectCategory(idx)
+    modCatLabel.Text = categories[idx]
+    for _, b in ipairs(modBtns) do b:Destroy() end
+    modBtns = {}
+
+    for _, name in ipairs(modules[categories[idx]] or {}) do
+        local row = Instance.new("TextButton", modScroll)
+        row.Name = name
+        row.Size = UDim2.new(1, 0, 0, ROW_H)
+        row.BackgroundColor3 = C.BG_ROW
+        row.BackgroundTransparency = selectedModule == name and 0.3 or 0.6
+        row.Text = ""; row.AutoButtonColor = false; row.ZIndex = 6
+        Instance.new("UICorner", row).CornerRadius = UDim.new(0, 8)
+
+        local lbl = Instance.new("TextLabel", row)
+        lbl.Name = "Label"
+        lbl.Size = UDim2.new(1,-40,1,0); lbl.Position = UDim2.new(0,10,0,0)
+        lbl.BackgroundTransparency = 1; lbl.Text = name
+        lbl.Font = Enum.Font.GothamSemibold; lbl.TextSize = 13
+        lbl.TextColor3 = moduleEnabled[name] and C.TEXT or C.MUTED
+        lbl.TextXAlignment = Enum.TextXAlignment.Left; lbl.ZIndex = 7
+
+        local dot = Instance.new("Frame", row)
+        dot.Name = "Dot"
+        dot.Size = UDim2.new(0,8,0,8); dot.Position = UDim2.new(1,-18,0.5,-4)
+        dot.BackgroundColor3 = moduleEnabled[name] and C.ACCENT1 or C.SOFT
+        dot.BackgroundTransparency = moduleEnabled[name] and 0 or 0.5
+        dot.BorderSizePixel = 0; dot.ZIndex = 7
+        Instance.new("UICorner", dot).CornerRadius = UDim.new(1,0)
+
+        row.MouseButton1Click:Connect(function()
+            selectedModule = name
+            updateDetPanel(name)
+            for _, b in ipairs(modBtns) do
+                local sel = (b.Name == name)
+                tween(b, { BackgroundTransparency = sel and 0.3 or 0.6 }, 0.15)
+                b.BackgroundColor3 = sel and C.BG_ROW_SEL or C.BG_ROW
+            end
+        end)
+
+        row.MouseButton2Click:Connect(function()
+            moduleEnabled[name] = not moduleEnabled[name]
+            local en = moduleEnabled[name]
+            tween(lbl, { TextColor3 = en and C.TEXT or C.MUTED }, 0.2)
+            tween(dot, { BackgroundColor3 = en and C.ACCENT1 or C.SOFT, BackgroundTransparency = en and 0 or 0.5 }, 0.2)
+            applyModuleState(name)
+            if selectedModule == name then updateDetPanel(name) end
+        end)
+
+        row.MouseEnter:Connect(function()
+            if selectedModule ~= name then tween(row, { BackgroundTransparency = 0.45 }, 0.12) end
+        end)
+        row.MouseLeave:Connect(function()
+            if selectedModule ~= name then tween(row, { BackgroundTransparency = 0.6 }, 0.12) end
+        end)
+
+        table.insert(modBtns, row)
+    end
+
+    for _, btn in ipairs(catBtns) do
+        local active = (btn.Name == categories[idx])
+        tween(btn, {
+            BackgroundColor3       = active and C.BG_ROW_SEL or C.BG_SIDEBAR,
+            BackgroundTransparency = active and 0.3 or 1,
+        }, 0.2)
+        btn:FindFirstChild("Label").TextColor3 = active and C.ACCENT1 or C.SOFT
+    end
+end
+
+toggleBtn.MouseButton1Click:Connect(function()
+    if selectedModule then
+        moduleEnabled[selectedModule] = not moduleEnabled[selectedModule]
+        applyModuleState(selectedModule)
+        selectCategory(1)
+        updateDetPanel(selectedModule)
+    end
+end)
+
+for i, name in ipairs(categories) do
+    local btn = Instance.new("TextButton", catContainer)
+    btn.Name = name
+    btn.Size = UDim2.new(1,-8,0,44)
+    btn.BackgroundColor3 = C.BG_SIDEBAR
+    btn.BackgroundTransparency = 1
+    btn.Text = ""; btn.AutoButtonColor = false; btn.ZIndex = 4
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0,8)
+
+    local icon = Instance.new("TextLabel", btn)
+    icon.Size = UDim2.new(1,0,0,18); icon.Position = UDim2.new(0,0,0,5)
+    icon.BackgroundTransparency = 1; icon.Text = catIcons[i]
+    icon.Font = Enum.Font.Gotham; icon.TextSize = 14
+    icon.TextXAlignment = Enum.TextXAlignment.Center; icon.ZIndex = 5
+
+    local lbl = Instance.new("TextLabel", btn)
+    lbl.Name = "Label"
+    lbl.Size = UDim2.new(1,0,0,14); lbl.Position = UDim2.new(0,0,0,24)
+    lbl.BackgroundTransparency = 1; lbl.Text = name
+    lbl.Font = Enum.Font.GothamSemibold; lbl.TextSize = 9
+    lbl.TextXAlignment = Enum.TextXAlignment.Center
+    lbl.TextColor3 = C.SOFT; lbl.ZIndex = 5
+
+    btn.MouseButton1Click:Connect(function() selectCategory(i) end)
+    btn.MouseEnter:Connect(function() tween(btn, { BackgroundTransparency = 0.7 }, 0.15) end)
+    btn.MouseLeave:Connect(function() tween(btn, { BackgroundTransparency = 1 }, 0.15) end)
+    table.insert(catBtns, btn)
+end
+
+selectCategory(1)
+
+-- ── ICON BUTTON ───────────────────────────────────────────
+local iconFrame = Instance.new("Frame", gui)
+iconFrame.Size = UDim2.new(0,48,0,48)
+iconFrame.Position = UDim2.new(1,-64,0,16)
+iconFrame.BackgroundTransparency = 1; iconFrame.ZIndex = 20
+
+local ring = Instance.new("Frame", iconFrame)
+ring.Size = UDim2.new(1,0,1,0); ring.BackgroundColor3 = C.ACCENT1
+ring.BackgroundTransparency = 0.5; ring.BorderSizePixel = 0; ring.ZIndex = 19
+Instance.new("UICorner", ring).CornerRadius = UDim.new(1,0)
+
+task.spawn(function()
+    while true do
+        tween(ring, { Size=UDim2.new(1.5,0,1.5,0), Position=UDim2.new(-0.25,0,-0.25,0), BackgroundTransparency=1 }, 1, Enum.EasingStyle.Quad)
+        task.wait(1)
+        ring.Size = UDim2.new(1,0,1,0); ring.Position = UDim2.new(0,0,0,0); ring.BackgroundTransparency = 0.5
+        task.wait(0.6)
+    end
+end)
+
+local iconBtn = Instance.new("ImageButton", iconFrame)
+iconBtn.Size = UDim2.new(1,0,1,0); iconBtn.BackgroundColor3 = C.BG_MAIN
+iconBtn.AutoButtonColor = false
+iconBtn.Image = "rbxassetid://3926305904"
+iconBtn.ImageRectOffset = Vector2.new(764,244); iconBtn.ImageRectSize = Vector2.new(36,36)
+iconBtn.ImageColor3 = C.ACCENT1; iconBtn.ZIndex = 21
+Instance.new("UICorner", iconBtn).CornerRadius = UDim.new(1,0)
+
+local iconStroke = Instance.new("UIStroke", iconBtn)
+iconStroke.Color = C.ACCENT1; iconStroke.Thickness = 2
+
+-- ── ОТКРЫТИЕ / ЗАКРЫТИЕ ──────────────────────────────────
+local isOpen  = false
+local OPEN_P  = UDim2.new(0.5,-MENU_W/2, 0.5,-MENU_H/2)
+local CLOSE_P = UDim2.new(0.5,0, 0.5,0)
+
+local function toggleGui()
+    isOpen = not isOpen
+    if isOpen then
+        shadow.Visible = true; main.Visible = true
+        main.Size = UDim2.new(0,0,0,0); main.Position = CLOSE_P
+        tween(main, { Size=UDim2.new(0,MENU_W,0,MENU_H), Position=OPEN_P }, 0.45, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+        tween(shadow, { ImageTransparency=0.6 }, 0.45)
+        tween(blur, { Size=18 }, 0.45)
+        tween(iconBtn, { Rotation=90, ImageColor3=C.ACCENT2 }, 0.35)
+        tween(iconStroke, { Color=C.ACCENT2 }, 0.35)
+    else
+        tween(main, { Size=UDim2.new(0,0,0,0), Position=CLOSE_P }, 0.3, Enum.EasingStyle.Quint, Enum.EasingDirection.In)
+        tween(shadow, { ImageTransparency=1 }, 0.3)
+        tween(blur, { Size=0 }, 0.3)
+        tween(iconBtn, { Rotation=0, ImageColor3=C.ACCENT1 }, 0.3)
+        tween(iconStroke, { Color=C.ACCENT1 }, 0.3)
+        task.delay(0.32, function()
+            if not isOpen then main.Visible = false; shadow.Visible = false end
+        end)
+    end
+end
+
+iconBtn.MouseButton1Click:Connect(toggleGui)
+iconBtn.MouseEnter:Connect(function() tween(iconBtn, { BackgroundColor3=Color3.fromHex("#1a0f15") }, 0.2) end)
+iconBtn.MouseLeave:Connect(function() tween(iconBtn, { BackgroundColor3=C.BG_MAIN }, 0.2) end)
+
+-- ── DRAG ─────────────────────────────────────────────────
+local dragging, dragStart, startPos
+main.InputBegan:Connect(function(inp)
+    if inp.UserInputType == Enum.UserInputType.MouseButton1 or inp.UserInputType == Enum.UserInputType.Touch then
+        dragging = true; dragStart = inp.Position; startPos = main.Position
+    end
+end)
+UserInputService.InputChanged:Connect(function(inp)
+    if dragging and (inp.UserInputType == Enum.UserInputType.MouseMovement or inp.UserInputType == Enum.UserInputType.Touch) then
+        local d = inp.Position - dragStart
+        main.Position   = UDim2.new(startPos.X.Scale, startPos.X.Offset+d.X, startPos.Y.Scale, startPos.Y.Offset+d.Y)
+        shadow.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset+d.X-20, startPos.Y.Scale, startPos.Y.Offset+d.Y-20)
+    end
+end)
+UserInputService.InputEnded:Connect(function(inp)
+    if inp.UserInputType == Enum.UserInputType.MouseButton1 or inp.UserInputType == Enum.UserInputType.Touch then
+        dragging = false
+    end
+end)
